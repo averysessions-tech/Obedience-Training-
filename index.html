@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Family Journal">
+<meta name="theme-color" content="#F4EFE4">
+<title>Family Character Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#22332C;
+    --ink-soft:#54655D;
+    --parchment:#F4EFE4;
+    --card:#FFFFFF;
+    --line:#E2D9C6;
+    --peace:#5C7F5A;
+    --peace-soft:#E4EBDE;
+    --conflict:#B5573F;
+    --conflict-soft:#F3E1DA;
+    --gold:#C99A3E;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--parchment);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    padding-bottom:100px;
+  }
+  header.top{
+    padding:calc(28px + env(safe-area-inset-top)) 20px 14px;
+  }
+  header.top h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:26px;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  header.top p{
+    margin:0;
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+  nav.tabs{
+    position:sticky;
+    top:0;
+    z-index:10;
+    display:flex;
+    gap:6px;
+    padding:10px 16px;
+    background:var(--parchment);
+    border-bottom:1px solid var(--line);
+  }
+  nav.tabs button{
+    flex:1;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:9px 4px;
+    border-radius:999px;
+    cursor:pointer;
+  }
+  nav.tabs button.active{
+    background:var(--ink);
+    color:var(--parchment);
+  }
+  main{padding:18px 16px 0;}
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  .ring-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    margin-bottom:16px;
+  }
+  .ring-wrap{position:relative; width:104px; height:104px; flex:none;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-label{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .ring-label .num{font-family:'Fraunces',serif; font-size:22px; font-weight:600;}
+  .ring-label .cap{font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em;}
+  .ring-meta{flex:1;}
+  .ring-meta .title{font-family:'Fraunces',serif; font-size:16px; font-weight:600; margin-bottom:4px;}
+  .ring-meta .sub{font-size:12.5px; color:var(--ink-soft); line-height:1.4;}
+  .counts{display:flex; gap:10px; margin-top:10px;}
+  .pill{font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px;}
+  .pill.peace{background:var(--peace-soft); color:var(--peace);}
+  .pill.conflict{background:var(--conflict-soft); color:var(--conflict);}
+
+  .tap-row{display:flex; gap:12px; margin-bottom:18px;}
+  .tap-btn{
+    flex:1;
+    border:none;
+    border-radius:var(--radius);
+    padding:20px 10px;
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    color:#fff;
+    box-shadow:0 4px 14px rgba(0,0,0,0.08);
+  }
+  .tap-btn.peace-btn{background:var(--peace);}
+  .tap-btn.conflict-btn{background:var(--conflict);}
+  .tap-btn small{font-family:'Inter',sans-serif; font-weight:500; font-size:11px; opacity:.85;}
+
+  .note-input{
+    width:100%;
+    border:1px solid var(--line);
+    background:var(--card);
+    border-radius:12px;
+    padding:11px 13px;
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    margin-bottom:18px;
+    color:var(--ink);
+  }
+  .note-input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+
+  .section-label{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:14px;
+    color:var(--ink-soft);
+    margin:4px 0 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .entry{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:11px 13px;
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .entry .dot{width:9px; height:9px; border-radius:50%; margin-top:5px; flex:none;}
+  .entry.peace .dot{background:var(--peace);}
+  .entry.conflict .dot{background:var(--conflict);}
+  .entry .body{flex:1; min-width:0;}
+  .entry .body .txt{font-size:13.5px; line-height:1.4;}
+  .entry .body .meta{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+  .entry button.del{
+    background:none; border:none; color:var(--ink-soft); font-size:16px; cursor:pointer; padding:2px 4px;
+  }
+  .empty{color:var(--ink-soft); font-size:13px; padding:14px 4px; text-align:center;}
+
+  .child-row{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding:2px 2px 14px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .child-row::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:none;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:var(--card);
+    border:1.5px solid var(--line);
+    color:var(--ink-soft);
+    font-size:13px;
+    font-weight:600;
+    padding:8px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .chip.active{
+    background:var(--ink);
+    border-color:var(--ink);
+    color:var(--parchment);
+  }
+  .chip .x{
+    font-size:11px;
+    opacity:.6;
+    margin-left:2px;
+  }
+  .chip.add{
+    color:var(--gold);
+    border-color:var(--gold);
+    border-style:dashed;
+    background:transparent;
+  }
+  .no-child-banner{
+    background:var(--card);
+    border:1px dashed var(--line);
+    border-radius:12px;
+    padding:14px;
+    font-size:13px;
+    color:var(--ink-soft);
+    text-align:center;
+    margin-bottom:16px;
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 15px;
+    margin-bottom:10px;
+  }
+  .card-head{
+    display:flex;
+    align-items:flex-start;
+    gap:11px;
+    cursor:pointer;
+  }
+  .check{
+    width:22px; height:22px; border-radius:7px;
+    border:2px solid var(--line);
+    flex:none; margin-top:2px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; color:#fff;
+    transition:background .15s, border-color .15s;
+  }
+  .check.done{background:var(--peace); border-color:var(--peace);}
+  .card-head .titles{flex:1;}
+  .card-head .titles .t{font-weight:600; font-size:14.5px;}
+  .card-head .titles .d{font-size:12.5px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+  .chev{color:var(--ink-soft); font-size:13px; margin-top:3px;}
+  .card textarea{
+    width:100%;
+    margin-top:10px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:9px 11px;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    resize:vertical;
+    min-height:52px;
+    color:var(--ink);
+    display:none;
+  }
+  .card.open textarea{display:block;}
+  .habit-num{
+    width:22px; height:22px; border-radius:50%;
+    background:var(--gold); color:#fff;
+    font-size:11.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    flex:none; margin-top:2px;
+  }
+
+  .toast{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--parchment);
+    padding:9px 16px; border-radius:999px; font-size:12.5px;
+    opacity:0; transition:opacity .2s, transform .2s;
+    pointer-events:none;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .loading{padding:40px 0; text-align:center; color:var(--ink-soft); font-size:13px;}
+
+  .modal-backdrop{
+    position:fixed; inset:0;
+    background:rgba(34,51,44,0.45);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:100;
+  }
+  .modal-backdrop.show{display:flex;}
+  .modal-sheet{
+    background:var(--parchment);
+    width:100%;
+    max-width:480px;
+    border-radius:20px 20px 0 0;
+    padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 30px rgba(0,0,0,0.2);
+  }
+  .modal-sheet h3{
+    font-family:'Fraunces',serif;
+    font-size:18px;
+    margin:0 0 6px;
+  }
+  .modal-sheet p{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:0 0 16px;
+    line-height:1.4;
+  }
+  .modal-sheet input[type=text]{
+    width:100%;
+    border:1.5px solid var(--line);
+    background:var(--card);
+    border-radius:12px;
+    padding:12px 14px;
+    font-size:15px;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    margin-bottom:16px;
+  }
+  .modal-sheet input[type=text]:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  .modal-actions{display:flex; gap:10px;}
+  .modal-actions button{
+    flex:1;
+    border:none;
+    border-radius:12px;
+    padding:13px 10px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    cursor:pointer;
+  }
+  .modal-actions .btn-cancel{background:var(--card); border:1.5px solid var(--line); color:var(--ink-soft);}
+  .modal-actions .btn-confirm{background:var(--ink); color:var(--parchment);}
+  .modal-actions .btn-danger{background:var(--conflict); color:#fff;}
+  .modal-child-list{display:flex; flex-direction:column; gap:8px; margin-bottom:16px;}
+  .modal-child-btn{
+    text-align:left;
+    border:1.5px solid var(--line);
+    background:var(--card);
+    border-radius:12px;
+    padding:13px 14px;
+    font-family:'Inter',sans-serif;
+    font-size:15px;
+    font-weight:600;
+    color:var(--ink);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+  }
+  .modal-child-btn.checked{
+    border-color:var(--peace);
+    background:var(--peace-soft);
+  }
+  .modal-check{
+    width:20px; height:20px; border-radius:6px;
+    border:2px solid var(--line);
+    flex:none;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; color:#fff;
+  }
+  .modal-check.on{background:var(--peace); border-color:var(--peace);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Family Character Journal</h1>
+    <p>Track peace &amp; conflict, work your action steps, note your habits — all synced here.</p>
+  </header>
+
+  <nav class="tabs">
+    <button data-view="tracker" class="active">Tracker</button>
+    <button data-view="steps">Action Steps</button>
+    <button data-view="habits">Habits</button>
+  </nav>
+
+  <main>
+    <section class="view active" id="view-tracker">
+      <div class="section-label" style="margin-top:0;">
+        <span>Children</span>
+      </div>
+      <div class="child-row" id="childRow"></div>
+
+      <div class="ring-card">
+        <div class="ring-wrap">
+          <svg width="104" height="104" viewBox="0 0 104 104">
+            <circle cx="52" cy="52" r="44" fill="none" stroke="var(--conflict-soft)" stroke-width="12"/>
+            <circle id="ringArc" cx="52" cy="52" r="44" fill="none" stroke="var(--peace)" stroke-width="12"
+              stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="276.5"/>
+          </svg>
+          <div class="ring-label">
+            <div class="num" id="ringPct">–</div>
+            <div class="cap">peace</div>
+          </div>
+        </div>
+        <div class="ring-meta">
+          <div class="title">This week</div>
+          <div class="sub">Goal: 3 peaceful interactions for every 1 conflict.</div>
+          <div class="counts">
+            <span class="pill peace" id="peaceCount">0 peace</span>
+            <span class="pill conflict" id="conflictCount">0 conflict</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tap-row">
+        <button class="tap-btn peace-btn" id="btnPeace">
+          🕊️ Peace
+          <small>intentional, no conflict</small>
+        </button>
+        <button class="tap-btn conflict-btn" id="btnConflict">
+          ⚡ Conflict
+          <small>correction, frustration</small>
+        </button>
+      </div>
+
+      <input type="text" class="note-input" id="noteInput" placeholder="Optional note — child, what happened…">
+
+      <div class="section-label">
+        <span>Recent entries</span>
+        <span id="entryTotal"></span>
+      </div>
+      <div id="entryList"></div>
+    </section>
+
+    <section class="view" id="view-steps">
+      <div class="section-label">Parent Action Steps</div>
+      <div id="stepsList"></div>
+    </section>
+
+    <section class="view" id="view-habits">
+      <div class="section-label">The 10 Foundational Habits</div>
+      <div id="habitsList"></div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast">Saved</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-sheet" id="modalSheet"></div>
+</div>
+
+<script>
+const CIRC = 2 * Math.PI * 44;
+
+const hasCloud = (typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function');
+const store = {
+  async get(key){
+    if(hasCloud){
+      try{ const r = await window.storage.get(key, false); return r ? r.value : null; }
+      catch(e){ return null; }
+    }
+    try{ return localStorage.getItem(key); } catch(e){ return null; }
+  },
+  async set(key, value){
+    if(hasCloud){
+      try{ await window.storage.set(key, value, false); return true; }
+      catch(e){ return false; }
+    }
+    try{ localStorage.setItem(key, value); return true; } catch(e){ return false; }
+  }
+};
+
+const ACTION_STEPS = [
+  ["Study the Gospel", "Read at least a chapter or 5 pages of scripture a day and think about how it applies to you and your children."],
+  ["Monitor media", "Be aware of what your children are watching and listening to; remove what doesn't fit your values."],
+  ["Create a Mind Movie", "Define a clear vision for your family and what you want to become."],
+  ["Define your family's rhetoric", "Choose the phrases and message you want to repeat daily."],
+  ["Track Peace vs. Conflict", "Use the Tracker tab to notice whether interactions happen proactively or during conflict."],
+  ["Use episodic memory", "Tell your children a story about a routine you want to establish, and have them retell it."],
+  ["Use procedural memory", "Visualize yourself handling a training moment well before it happens."],
+  ["Try task bracketing (build)", "Add a new habit by focusing on the pleasant moments right before and after it."],
+  ["Try task bracketing (break)", "Redirect a bad habit's trigger straight into a better one, the moment you notice it."],
+  ["Try habit stacking", "Attach a new habit onto an existing routine — meals, mornings, bedtime."]
+];
+
+const HABITS = [
+  "Obedience","Attention","Truthfulness","Thinking","Order and Cleanliness",
+  "Perfect Execution","Virtue and Chastity","Positivity","Empathy and Charity","Faith"
+];
+
+let entries = [];
+let stepsState = {};
+let habitsState = {};
+let children = [];
+let selectedChildId = 'all';
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(()=>t.classList.remove('show'), 1400);
+}
+
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalSheet = document.getElementById('modalSheet');
+
+function closeModal(){
+  modalBackdrop.classList.remove('show');
+  modalSheet.innerHTML = '';
+}
+modalBackdrop.addEventListener('click', (e)=>{ if(e.target === modalBackdrop) closeModal(); });
+
+function promptModal({title, description, placeholder, confirmLabel}){
+  return new Promise((resolve)=>{
+    modalSheet.innerHTML = `
+      <h3>${title}</h3>
+      ${description ? `<p>${description}</p>` : ''}
+      <input type="text" id="modalInput" placeholder="${placeholder || ''}" autocomplete="off">
+      <div class="modal-actions">
+        <button class="btn-cancel" id="modalCancel">Cancel</button>
+        <button class="btn-confirm" id="modalConfirm">${confirmLabel || 'Add'}</button>
+      </div>
+    `;
+    modalBackdrop.classList.add('show');
+    const input = document.getElementById('modalInput');
+    setTimeout(()=> input.focus(), 100);
+    const finish = (val)=>{ closeModal(); resolve(val); };
+    document.getElementById('modalCancel').addEventListener('click', ()=> finish(null));
+    document.getElementById('modalConfirm').addEventListener('click', ()=> finish(input.value.trim() || null));
+    input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') finish(input.value.trim() || null); });
+  });
+}
+
+function confirmModal({title, description, confirmLabel}){
+  return new Promise((resolve)=>{
+    modalSheet.innerHTML = `
+      <h3>${title}</h3>
+      ${description ? `<p>${description}</p>` : ''}
+      <div class="modal-actions">
+        <button class="btn-cancel" id="modalCancel">Cancel</button>
+        <button class="btn-danger" id="modalConfirm">${confirmLabel || 'Remove'}</button>
+      </div>
+    `;
+    modalBackdrop.classList.add('show');
+    const finish = (val)=>{ closeModal(); resolve(val); };
+    document.getElementById('modalCancel').addEventListener('click', ()=> finish(false));
+    document.getElementById('modalConfirm').addEventListener('click', ()=> finish(true));
+  });
+}
+
+function pickChildrenModal(childList, actionLabel){
+  return new Promise((resolve)=>{
+    const selected = new Set();
+    const renderList = ()=>{
+      return childList.map(c => `
+        <button class="modal-child-btn ${selected.has(c.id) ? 'checked' : ''}" data-id="${c.id}">
+          <span class="modal-check ${selected.has(c.id) ? 'on' : ''}">${selected.has(c.id) ? '✓' : ''}</span>
+          <span>${escapeHtml(c.name)}</span>
+        </button>
+      `).join('');
+    };
+    modalSheet.innerHTML = `
+      <h3>Who was involved?</h3>
+      <p>Tap everyone this ${actionLabel} interaction applies to.</p>
+      <div class="modal-child-list" id="modalChildList">${renderList()}</div>
+      <div class="modal-actions" style="margin-bottom:10px;">
+        <button class="btn-cancel" id="modalSelectAll">Select all</button>
+        <button class="btn-cancel" id="modalSelectNone">Clear</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="modalCancel">Cancel</button>
+        <button class="btn-confirm" id="modalConfirm">Log entry</button>
+      </div>
+    `;
+    modalBackdrop.classList.add('show');
+
+    const listEl = document.getElementById('modalChildList');
+    const wireButtons = ()=>{
+      listEl.querySelectorAll('.modal-child-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.dataset.id;
+          if(selected.has(id)) selected.delete(id); else selected.add(id);
+          listEl.innerHTML = renderList();
+          wireButtons();
+        });
+      });
+    };
+    wireButtons();
+
+    const finish = (val)=>{ closeModal(); resolve(val); };
+    document.getElementById('modalCancel').addEventListener('click', ()=> finish(null));
+    document.getElementById('modalSelectAll').addEventListener('click', ()=>{
+      childList.forEach(c => selected.add(c.id));
+      listEl.innerHTML = renderList();
+      wireButtons();
+    });
+    document.getElementById('modalSelectNone').addEventListener('click', ()=>{
+      selected.clear();
+      listEl.innerHTML = renderList();
+      wireButtons();
+    });
+    document.getElementById('modalConfirm').addEventListener('click', ()=>{
+      if(!selected.size){ toast('Pick at least one child'); return; }
+      finish(Array.from(selected));
+    });
+  });
+}
+
+function weekKey(d = new Date()){
+  const day = new Date(d);
+  const dow = day.getDay();
+  const sunday = new Date(day);
+  sunday.setDate(day.getDate() - dow);
+  sunday.setHours(0,0,0,0);
+  return sunday.toISOString().slice(0,10);
+}
+
+function isThisWeek(ts){
+  return weekKey(new Date(ts)) === weekKey();
+}
+
+async function loadAll(){
+  try{
+    const v = await store.get('tracker-entries');
+    entries = v ? JSON.parse(v) : [];
+  }catch(err){ entries = []; }
+
+  try{
+    const v = await store.get('steps-state');
+    stepsState = v ? JSON.parse(v) : {};
+  }catch(err){ stepsState = {}; }
+
+  try{
+    const v = await store.get('habits-state');
+    habitsState = v ? JSON.parse(v) : {};
+  }catch(err){ habitsState = {}; }
+
+  try{
+    const v = await store.get('children');
+    children = v ? JSON.parse(v) : [];
+  }catch(err){ children = []; }
+
+  if(children.length && selectedChildId === 'all' && children.length === 1){
+    selectedChildId = children[0].id;
+  }
+
+  renderChildren();
+  renderTracker();
+  renderSteps();
+  renderHabits();
+}
+
+async function saveChildren(){
+  const ok = await store.set('children', JSON.stringify(children));
+  if(!ok) toast('Could not save');
+}
+
+function childName(id){
+  const c = children.find(c => c.id === id);
+  return c ? c.name : null;
+}
+
+function renderChildren(){
+  const row = document.getElementById('childRow');
+  row.innerHTML = '';
+
+  const allChip = document.createElement('div');
+  allChip.className = 'chip' + (selectedChildId === 'all' ? ' active' : '');
+  allChip.textContent = 'All';
+  allChip.addEventListener('click', ()=>{ selectedChildId = 'all'; renderChildren(); renderTracker(); });
+  row.appendChild(allChip);
+
+  children.forEach(c=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (selectedChildId === c.id ? ' active' : '');
+    chip.innerHTML = `<span>${escapeHtml(c.name)}</span><span class="x" data-id="${c.id}">✕</span>`;
+    chip.addEventListener('click', (ev)=>{
+      if(ev.target.classList.contains('x')) return;
+      selectedChildId = c.id;
+      renderChildren();
+      renderTracker();
+    });
+    chip.querySelector('.x').addEventListener('click', async (ev)=>{
+      ev.stopPropagation();
+      const ok = await confirmModal({
+        title: `Remove ${c.name}?`,
+        description: 'Their logged entries will be kept but unassigned.',
+        confirmLabel: 'Remove'
+      });
+      if(!ok) return;
+      children = children.filter(ch => ch.id !== c.id);
+      if(selectedChildId === c.id) selectedChildId = 'all';
+      await saveChildren();
+      renderChildren();
+      renderTracker();
+      toast('Child removed');
+    });
+    row.appendChild(chip);
+  });
+
+  const addChip = document.createElement('div');
+  addChip.className = 'chip add';
+  addChip.textContent = '+ Add child';
+  addChip.addEventListener('click', async ()=>{
+    const name = await promptModal({
+      title: 'Add a child',
+      placeholder: "Child's name",
+      confirmLabel: 'Add'
+    });
+    if(!name) return;
+    const child = { id: Date.now()+'-'+Math.random().toString(36).slice(2,6), name: name };
+    children.push(child);
+    selectedChildId = child.id;
+    await saveChildren();
+    renderChildren();
+    renderTracker();
+    toast(`${child.name} added`);
+  });
+  row.appendChild(addChip);
+}
+
+async function saveEntries(){
+  const ok = await store.set('tracker-entries', JSON.stringify(entries));
+  if(!ok) toast('Could not save');
+}
+async function saveSteps(){
+  const ok = await store.set('steps-state', JSON.stringify(stepsState));
+  if(!ok) toast('Could not save');
+}
+async function saveHabits(){
+  const ok = await store.set('habits-state', JSON.stringify(habitsState));
+  if(!ok) toast('Could not save');
+}
+
+function renderTracker(){
+  const scoped = selectedChildId === 'all' ? entries : entries.filter(e => e.childId === selectedChildId);
+
+  const weekEntries = scoped.filter(e => isThisWeek(e.ts));
+  const peace = weekEntries.filter(e => e.type==='peace').length;
+  const conflict = weekEntries.filter(e => e.type==='conflict').length;
+  const total = peace + conflict;
+  const pct = total ? peace/total : 0;
+
+  document.getElementById('ringArc').setAttribute('stroke-dashoffset', CIRC - pct*CIRC);
+  document.getElementById('ringPct').textContent = total ? Math.round(pct*100)+'%' : '–';
+  document.getElementById('peaceCount').textContent = peace + ' peace';
+  document.getElementById('conflictCount').textContent = conflict + ' conflict';
+  document.getElementById('entryTotal').textContent = scoped.length + ' total';
+
+  const list = document.getElementById('entryList');
+  list.innerHTML = '';
+
+  if(!children.length){
+    list.innerHTML = '<div class="no-child-banner">Add a child above to start logging entries for them.</div>';
+    return;
+  }
+
+  if(!scoped.length){
+    list.innerHTML = '<div class="empty">No entries yet. Tap Peace or Conflict above to log one.</div>';
+    return;
+  }
+  const sorted = [...scoped].sort((a,b)=> b.ts - a.ts).slice(0,40);
+  sorted.forEach(e=>{
+    const div = document.createElement('div');
+    div.className = 'entry ' + e.type;
+    const d = new Date(e.ts);
+    const dateStr = d.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'});
+    const timeStr = d.toLocaleTimeString(undefined,{hour:'numeric', minute:'2-digit'});
+    const name = childName(e.childId);
+    const label = e.note ? escapeHtml(e.note) : (e.type==='peace' ? 'Peaceful interaction' : 'Conflict interaction');
+    div.innerHTML = `
+      <div class="dot"></div>
+      <div class="body">
+        <div class="txt">${label}${(selectedChildId==='all' && name) ? ' · <strong>'+escapeHtml(name)+'</strong>' : ''}</div>
+        <div class="meta">${dateStr} · ${timeStr}</div>
+      </div>
+      <button class="del" data-id="${e.id}">✕</button>
+    `;
+    list.appendChild(div);
+  });
+  list.querySelectorAll('.del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      entries = entries.filter(e => e.id !== btn.dataset.id);
+      await saveEntries();
+      renderTracker();
+      toast('Entry removed');
+    });
+  });
+}
+
+function escapeHtml(s){
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+async function logEntry(type){
+  if(!children.length){
+    toast('Add a child first');
+    return;
+  }
+
+  let targetChildIds;
+  if(children.length === 1){
+    targetChildIds = [children[0].id];
+  } else if(selectedChildId !== 'all'){
+    targetChildIds = [selectedChildId];
+  } else {
+    targetChildIds = await pickChildrenModal(children, type === 'peace' ? 'peace' : 'conflict');
+    if(!targetChildIds || !targetChildIds.length){ toast('Cancelled'); return; }
+  }
+
+  const noteEl = document.getElementById('noteInput');
+  const note = noteEl.value.trim();
+  const ts = Date.now();
+  targetChildIds.forEach(childId=>{
+    entries.push({
+      id: ts+'-'+Math.random().toString(36).slice(2,7),
+      type, note, ts, childId
+    });
+  });
+  noteEl.value = '';
+  await saveEntries();
+  renderTracker();
+
+  const label = type === 'peace' ? 'Peace' : 'Conflict';
+  if(targetChildIds.length === 1){
+    toast(label + ' logged for ' + childName(targetChildIds[0]));
+  } else {
+    toast(label + ' logged for ' + targetChildIds.length + ' kids');
+  }
+}
+
+function renderSteps(){
+  const list = document.getElementById('stepsList');
+  list.innerHTML = '';
+  ACTION_STEPS.forEach(([title, desc], i)=>{
+    const st = stepsState[i] || {done:false, note:''};
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="check ${st.done ? 'done':''}" data-i="${i}">${st.done ? '✓' : ''}</div>
+        <div class="titles">
+          <div class="t">${title}</div>
+          <div class="d">${desc}</div>
+        </div>
+        <div class="chev">▾</div>
+      </div>
+      <textarea placeholder="Notes on how it went…" data-note="${i}">${st.note || ''}</textarea>
+    `;
+    list.appendChild(card);
+
+    const head = card.querySelector('.card-head');
+    const checkEl = card.querySelector('.check');
+    const ta = card.querySelector('textarea');
+
+    checkEl.addEventListener('click', async (ev)=>{
+      ev.stopPropagation();
+      const cur = stepsState[i] || {done:false, note:''};
+      cur.done = !cur.done;
+      stepsState[i] = cur;
+      checkEl.classList.toggle('done', cur.done);
+      checkEl.textContent = cur.done ? '✓' : '';
+      await saveSteps();
+    });
+
+    head.addEventListener('click', ()=>{
+      card.classList.toggle('open');
+      if(card.classList.contains('open')) ta.focus();
+    });
+
+    let debounce;
+    ta.addEventListener('click', e=> e.stopPropagation());
+    ta.addEventListener('input', ()=>{
+      clearTimeout(debounce);
+      debounce = setTimeout(async ()=>{
+        const cur = stepsState[i] || {done:false, note:''};
+        cur.note = ta.value;
+        stepsState[i] = cur;
+        await saveSteps();
+        toast('Saved');
+      }, 500);
+    });
+  });
+}
+
+function renderHabits(){
+  const list = document.getElementById('habitsList');
+  list.innerHTML = '';
+  HABITS.forEach((name, i)=>{
+    const st = habitsState[i] || {note:''};
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="habit-num">${i+1}</div>
+        <div class="titles">
+          <div class="t">${name}</div>
+          <div class="d">Tap to add a focus note for this habit.</div>
+        </div>
+        <div class="chev">▾</div>
+      </div>
+      <textarea placeholder="Current focus, wins, next step…" data-note="${i}">${st.note || ''}</textarea>
+    `;
+    list.appendChild(card);
+
+    const head = card.querySelector('.card-head');
+    const ta = card.querySelector('textarea');
+    head.addEventListener('click', ()=>{
+      card.classList.toggle('open');
+      if(card.classList.contains('open')) ta.focus();
+    });
+    ta.addEventListener('click', e=> e.stopPropagation());
+    let debounce;
+    ta.addEventListener('input', ()=>{
+      clearTimeout(debounce);
+      debounce = setTimeout(async ()=>{
+        habitsState[i] = { note: ta.value };
+        await saveHabits();
+        toast('Saved');
+      }, 500);
+    });
+  });
+}
+
+document.getElementById('btnPeace').addEventListener('click', ()=> logEntry('peace'));
+document.getElementById('btnConflict').addEventListener('click', ()=> logEntry('conflict'));
+
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  });
+});
+
+loadAll();
+</script>
+</body>
+</html>
