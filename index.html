@@ -225,6 +225,29 @@
     margin-bottom:16px;
   }
 
+  .range-toggle{
+    display:flex;
+    gap:6px;
+    margin-bottom:12px;
+  }
+  .range-toggle button{
+    flex:1;
+    border:1.5px solid var(--line);
+    background:var(--card);
+    color:var(--ink-soft);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:9px 4px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .range-toggle button.active{
+    background:var(--ink);
+    border-color:var(--ink);
+    color:var(--parchment);
+  }
+
   .card{
     background:var(--card);
     border:1px solid var(--line);
@@ -389,6 +412,11 @@
       </div>
       <div class="child-row" id="childRow"></div>
 
+      <div class="range-toggle">
+        <button data-range="today" id="rangeToday">Today</button>
+        <button data-range="week" class="active" id="rangeWeek">This Week</button>
+      </div>
+
       <div class="ring-card">
         <div class="ring-wrap">
           <svg width="104" height="104" viewBox="0 0 104 104">
@@ -402,7 +430,7 @@
           </div>
         </div>
         <div class="ring-meta">
-          <div class="title">This week</div>
+          <div class="title" id="rangeTitle">This week</div>
           <div class="sub">Goal: 3 peaceful interactions for every 1 conflict.</div>
           <div class="counts">
             <span class="pill peace" id="peaceCount">0 peace</span>
@@ -620,6 +648,14 @@ function isThisWeek(ts){
   return weekKey(new Date(ts)) === weekKey();
 }
 
+function isToday(ts){
+  const d = new Date(ts);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
+let rangeMode = 'week';
+
 async function loadAll(){
   try{
     const v = await store.get('tracker-entries');
@@ -736,12 +772,13 @@ async function saveHabits(){
 function renderTracker(){
   const scoped = selectedChildId === 'all' ? entries : entries.filter(e => e.childId === selectedChildId);
 
-  const weekEntries = scoped.filter(e => isThisWeek(e.ts));
-  const peace = weekEntries.filter(e => e.type==='peace').length;
-  const conflict = weekEntries.filter(e => e.type==='conflict').length;
+  const rangeEntries = scoped.filter(e => rangeMode === 'today' ? isToday(e.ts) : isThisWeek(e.ts));
+  const peace = rangeEntries.filter(e => e.type==='peace').length;
+  const conflict = rangeEntries.filter(e => e.type==='conflict').length;
   const total = peace + conflict;
   const pct = total ? peace/total : 0;
 
+  document.getElementById('rangeTitle').textContent = rangeMode === 'today' ? 'Today' : 'This week';
   document.getElementById('ringArc').setAttribute('stroke-dashoffset', CIRC - pct*CIRC);
   document.getElementById('ringPct').textContent = total ? Math.round(pct*100)+'%' : '–';
   document.getElementById('peaceCount').textContent = peace + ' peace';
@@ -927,6 +964,19 @@ function renderHabits(){
 
 document.getElementById('btnPeace').addEventListener('click', ()=> logEntry('peace'));
 document.getElementById('btnConflict').addEventListener('click', ()=> logEntry('conflict'));
+
+document.getElementById('rangeToday').addEventListener('click', ()=>{
+  rangeMode = 'today';
+  document.getElementById('rangeToday').classList.add('active');
+  document.getElementById('rangeWeek').classList.remove('active');
+  renderTracker();
+});
+document.getElementById('rangeWeek').addEventListener('click', ()=>{
+  rangeMode = 'week';
+  document.getElementById('rangeWeek').classList.add('active');
+  document.getElementById('rangeToday').classList.remove('active');
+  renderTracker();
+});
 
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
