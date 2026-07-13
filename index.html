@@ -453,7 +453,7 @@
       <input type="text" class="note-input" id="noteInput" placeholder="Optional note — child, what happened…">
 
       <div class="section-label">
-        <span>Recent entries</span>
+        <span id="entryListTitle">Today's entries</span>
         <span id="entryTotal"></span>
       </div>
       <div id="entryList"></div>
@@ -779,11 +779,12 @@ function renderTracker(){
   const pct = total ? peace/total : 0;
 
   document.getElementById('rangeTitle').textContent = rangeMode === 'today' ? 'Today' : 'This week';
+  document.getElementById('entryListTitle').textContent = rangeMode === 'today' ? "Today's entries" : "This week's entries";
   document.getElementById('ringArc').setAttribute('stroke-dashoffset', CIRC - pct*CIRC);
   document.getElementById('ringPct').textContent = total ? Math.round(pct*100)+'%' : '–';
   document.getElementById('peaceCount').textContent = peace + ' peace';
   document.getElementById('conflictCount').textContent = conflict + ' conflict';
-  document.getElementById('entryTotal').textContent = scoped.length + ' total';
+  document.getElementById('entryTotal').textContent = rangeEntries.length + ' total';
 
   const list = document.getElementById('entryList');
   list.innerHTML = '';
@@ -793,11 +794,11 @@ function renderTracker(){
     return;
   }
 
-  if(!scoped.length){
-    list.innerHTML = '<div class="empty">No entries yet. Tap Peace or Conflict above to log one.</div>';
+  if(!rangeEntries.length){
+    list.innerHTML = `<div class="empty">No entries ${rangeMode === 'today' ? 'yet today' : 'this week'}. Tap Peace or Conflict above to log one.</div>`;
     return;
   }
-  const sorted = [...scoped].sort((a,b)=> b.ts - a.ts).slice(0,40);
+  const sorted = [...rangeEntries].sort((a,b)=> b.ts - a.ts).slice(0,60);
   sorted.forEach(e=>{
     const div = document.createElement('div');
     div.className = 'entry ' + e.type;
