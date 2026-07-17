@@ -21,6 +21,7 @@
     --card:#FFFFFF;
     --line:#D7DEE2;
     --peace:#5B9BD5;
+    --peace-rgb:91,155,213;
     --peace-soft:#DCEAF6;
     --conflict:#4B5157;
     --conflict-soft:#E4E6E8;
@@ -542,6 +543,80 @@
   .habit-grid tr.count-row td.row-label{font-weight:700;}
   .habit-grid tr.count-row{border-top:1.5px solid var(--line);}
   .check.small{width:20px; height:20px; border-radius:6px; margin:0 auto; font-size:11px;}
+
+  .dt-nav{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    margin-bottom:14px;
+  }
+  .dt-nav button{
+    width:32px; height:32px;
+    border-radius:50%;
+    border:1.5px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+    font-size:16px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .dt-nav span{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:14px;
+    min-width:120px;
+    text-align:center;
+  }
+
+  .day-progress{
+    width:16px;
+    height:28px;
+    border-radius:6px;
+    background:var(--conflict-soft);
+    border:1px solid var(--line);
+    position:relative;
+    margin:0 auto;
+    overflow:hidden;
+  }
+  .day-progress .fill{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    background:var(--peace);
+    transition:height .2s;
+  }
+  .day-progress.full{border-color:var(--peace);}
+
+  .monthly-child-card{overflow-x:auto;}
+  .month-pct{
+    font-family:'Fraunces',serif;
+    font-size:18px;
+    font-weight:600;
+    color:var(--peace);
+  }
+  .month-grid{
+    display:grid;
+    grid-template-columns:repeat(7, 1fr);
+    gap:4px;
+  }
+  .month-cell{
+    aspect-ratio:1;
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:9.5px;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+  }
+  .month-cell.month-head{
+    border:none;
+    font-weight:700;
+    color:var(--ink-soft);
+    font-size:10px;
+    aspect-ratio:auto;
+  }
+  .month-cell.blank{border:none; background:transparent;}
 </style>
 </head>
 <body>
@@ -553,10 +628,10 @@
 
   <nav class="tabs">
     <button data-view="tracker" class="active">P/C Tracker</button>
+    <button data-view="levels">Levels</button>
+    <button data-view="dailyTracker">Habit Tracker</button>
     <button data-view="steps">Action Steps</button>
     <button data-view="habits">Habits</button>
-    <button data-view="levels">Levels</button>
-    <button data-view="dailyTracker">Daily Tracker</button>
     <button data-view="training">Training</button>
   </nav>
 
@@ -615,6 +690,38 @@
       <div id="entryList"></div>
     </section>
 
+    <!-- OBEDIENCE LEVELS -->
+    <section class="view" id="view-levels">
+      <div class="section-label">Obedience Levels</div>
+      <div id="levelsList"></div>
+    </section>
+
+    <!-- HABIT TRACKER -->
+    <section class="view" id="view-dailyTracker">
+      <div class="section-label" style="margin-top:0;">
+        <span>Daily Obedience Interactions</span>
+      </div>
+      <div class="dt-hint">Plan 3–5 interactions you'll consciously do each day, then check them off per child below.</div>
+      <div class="interaction-list" id="interactionList"></div>
+      <button class="chip add" id="addInteractionBtn" style="margin-bottom:20px;">+ Add interaction</button>
+
+      <div class="section-label" style="margin-top:6px;"><span>This Week</span></div>
+      <div class="dt-nav">
+        <button id="dtPrevWeek" aria-label="Previous week">‹</button>
+        <span id="dtWeekLabel">–</span>
+        <button id="dtNextWeek" aria-label="Next week">›</button>
+      </div>
+      <div id="dailyTrackerCards"></div>
+
+      <div class="section-label" style="margin-top:26px;"><span>Monthly Overview</span></div>
+      <div class="dt-nav">
+        <button id="dtPrevMonth" aria-label="Previous month">‹</button>
+        <span id="dtMonthLabel">–</span>
+        <button id="dtNextMonth" aria-label="Next month">›</button>
+      </div>
+      <div id="monthlyTrackerCards"></div>
+    </section>
+
     <!-- ACTION STEPS -->
     <section class="view" id="view-steps">
       <div class="section-label">Parent Action Steps</div>
@@ -627,27 +734,9 @@
       <div id="habitsList"></div>
     </section>
 
-    <!-- OBEDIENCE LEVELS -->
-    <section class="view" id="view-levels">
-      <div class="section-label">Obedience Levels</div>
-      <div id="levelsList"></div>
-    </section>
-
-    <!-- DAILY HABIT TRACKER -->
-    <section class="view" id="view-dailyTracker">
-      <div class="section-label" style="margin-top:0;">
-        <span>Daily Obedience Interactions</span>
-      </div>
-      <div class="dt-hint">Plan 3–5 interactions you'll consciously do each day, then check them off per child below.</div>
-      <div class="interaction-list" id="interactionList"></div>
-      <button class="chip add" id="addInteractionBtn" style="margin-bottom:20px;">+ Add interaction</button>
-
-      <div id="dailyTrackerCards"></div>
-    </section>
-
     <!-- TRAINING EXERCISES -->
     <section class="view" id="view-training">
-      <div class="section-label">Training Exercises</div>
+      <div class="section-label">Parent Training Exercises</div>
       <div id="trainingList"></div>
     </section>
   </main>
@@ -1358,8 +1447,12 @@ function ymd(d){
   const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
-function currentWeekDates(){
+let weekOffset = 0;  // 0 = this week, -1 = last week, +1 = next week
+let monthOffset = 0; // 0 = this month, -1 = last month, +1 = next month
+
+function weekDates(offset){
   const now = new Date();
+  now.setDate(now.getDate() + (offset||0)*7);
   const dow = now.getDay();
   const dates = [];
   for(let i=0;i<7;i++){
@@ -1368,6 +1461,35 @@ function currentWeekDates(){
     dates.push(d);
   }
   return dates;
+}
+function weekLabel(dates){
+  const start = dates[0], end = dates[6];
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startStr = start.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+  const endStr = end.toLocaleDateString(undefined, {month:'short', day:'numeric', year: sameYear ? undefined : 'numeric'});
+  return `${startStr} – ${endStr}`;
+}
+function monthInfo(offset){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + (offset||0);
+  const first = new Date(y, m, 1);
+  const daysInMonth = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
+  return { year: first.getFullYear(), month: first.getMonth(), daysInMonth, firstDow: first.getDay() };
+}
+function monthLabel(info){
+  return new Date(info.year, info.month, 1).toLocaleDateString(undefined, {month:'long', year:'numeric'});
+}
+function childInteractionsFor(childId){
+  return dailyInteractions.filter(it => !it.childIds || !it.childIds.length || it.childIds.includes(childId));
+}
+function dayRatio(childId, dateKey){
+  const list = childInteractionsFor(childId);
+  if(!list.length) return 0;
+  const cs = habitTrackerState[childId];
+  if(!cs || !cs.interactions) return 0;
+  const checked = list.filter(it => cs.interactions[it.id] && cs.interactions[it.id][dateKey]).length;
+  return checked / list.length;
 }
 const DAY_LETTERS = ['S','M','T','W','T','F','S'];
 
@@ -1443,12 +1565,15 @@ function renderDailyTracker(){
   if(!wrap) return;
   wrap.innerHTML = '';
 
+  const dates = weekDates(weekOffset);
+  const weekLabelEl = document.getElementById('dtWeekLabel');
+  if(weekLabelEl) weekLabelEl.textContent = weekLabel(dates);
+
   if(!children.length){
     wrap.innerHTML = '<div class="no-child-banner">Add a child on the Tracker tab to start their daily tracker.</div>';
+    renderMonthlyTracker();
     return;
   }
-
-  const dates = currentWeekDates();
 
   children.forEach(c=>{
     if(!habitTrackerState[c.id]) habitTrackerState[c.id] = { interactions:{}, count:{} };
@@ -1478,7 +1603,7 @@ function renderDailyTracker(){
       </div>
     `;
 
-    const childInteractions = dailyInteractions.filter(it => !it.childIds || !it.childIds.length || it.childIds.includes(c.id));
+    const childInteractions = childInteractionsFor(c.id);
 
     let tableHtml;
     if(childInteractions.length){
@@ -1491,10 +1616,11 @@ function renderDailyTracker(){
         }).join('');
         return `<tr><td class="row-label">${escapeHtml(item.text)}</td>${cells}</tr>`;
       }).join('');
-      const countRow = `<tr class="count-row"><td class="row-label">Daily count complete</td>${dates.map(d=>{
+      const countRow = `<tr class="count-row"><td class="row-label">Daily total</td>${dates.map(d=>{
         const key = ymd(d);
-        const on = !!cs.count[key];
-        return `<td><div class="check small ${on?'done':''}" data-child="${c.id}" data-count="1" data-date="${key}">${on?'✓':''}</div></td>`;
+        const ratio = dayRatio(c.id, key);
+        const pct = Math.round(ratio*100);
+        return `<td><div class="day-progress ${ratio>=1?'full':''}"><div class="fill" style="height:${pct}%"></div></div></td>`;
       }).join('')}</tr>`;
       tableHtml = `<table class="habit-grid"><thead>${headRow}</thead><tbody>${bodyRows}${countRow}</tbody></table>`;
     } else if(dailyInteractions.length){
@@ -1533,22 +1659,70 @@ function renderDailyTracker(){
         if(!cs.interactions[intId]) cs.interactions[intId] = {};
         const nowOn = !cs.interactions[intId][date];
         if(nowOn) cs.interactions[intId][date] = true; else delete cs.interactions[intId][date];
-        box.classList.toggle('done', nowOn);
-        box.textContent = nowOn ? '✓' : '';
         await saveHabitTracker();
+        renderDailyTracker();
       });
     });
 
-    card.querySelectorAll('.check[data-count]').forEach(box=>{
-      box.addEventListener('click', async ()=>{
-        const date = box.dataset.date;
-        const nowOn = !cs.count[date];
-        if(nowOn) cs.count[date] = true; else delete cs.count[date];
-        box.classList.toggle('done', nowOn);
-        box.textContent = nowOn ? '✓' : '';
-        await saveHabitTracker();
-      });
-    });
+  });
+
+  renderMonthlyTracker();
+}
+
+function renderMonthlyTracker(){
+  const wrap = document.getElementById('monthlyTrackerCards');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+
+  const info = monthInfo(monthOffset);
+  const monthLabelEl = document.getElementById('dtMonthLabel');
+  if(monthLabelEl) monthLabelEl.textContent = monthLabel(info);
+
+  if(!children.length){
+    wrap.innerHTML = '<div class="no-child-banner">Add a child on the Tracker tab to see their monthly overview.</div>';
+    return;
+  }
+
+  children.forEach(c=>{
+    const childInteractions = childInteractionsFor(c.id);
+    const card = document.createElement('div');
+    card.className = 'card monthly-child-card';
+
+    if(!childInteractions.length){
+      card.innerHTML = `
+        <div class="titles">
+          <div class="t">${escapeHtml(c.name)}</div>
+          <div class="d">No interactions assigned yet.</div>
+        </div>
+      `;
+      wrap.appendChild(card);
+      return;
+    }
+
+    let totalRatio = 0;
+    const dayCells = [];
+    for(let day=1; day<=info.daysInMonth; day++){
+      const d = new Date(info.year, info.month, day);
+      const key = ymd(d);
+      const ratio = dayRatio(c.id, key);
+      totalRatio += ratio;
+      dayCells.push(`<div class="month-cell" style="background-color:rgba(var(--peace-rgb), ${ratio.toFixed(2)});">${day}</div>`);
+    }
+    const monthPct = Math.round((totalRatio / info.daysInMonth) * 100);
+    const leadingBlanks = Array.from({length: info.firstDow}, ()=> `<div class="month-cell blank"></div>`).join('');
+
+    card.innerHTML = `
+      <div class="titles" style="margin-bottom:10px; display:flex; align-items:baseline; justify-content:space-between;">
+        <div class="t">${escapeHtml(c.name)}</div>
+        <div class="month-pct">${monthPct}%</div>
+      </div>
+      <div class="month-grid">
+        ${DAY_LETTERS.map(l=>`<div class="month-cell month-head">${l}</div>`).join('')}
+        ${leadingBlanks}
+        ${dayCells.join('')}
+      </div>
+    `;
+    wrap.appendChild(card);
   });
 }
 
@@ -1566,7 +1740,7 @@ document.getElementById('addInteractionBtn').addEventListener('click', async ()=
   if(!text) return;
 
   let childIds = [];
-  if(children.length > 1){
+  if(children.length > 0){
     const picked = await pickChildrenModal(children, 'assign', {
       preselectedIds: children.map(c => c.id),
       title: 'Who is this for?',
@@ -1581,6 +1755,11 @@ document.getElementById('addInteractionBtn').addEventListener('click', async ()=
   renderDailyTracker();
   toast('Interaction added');
 });
+
+document.getElementById('dtPrevWeek').addEventListener('click', ()=>{ weekOffset--; renderDailyTracker(); });
+document.getElementById('dtNextWeek').addEventListener('click', ()=>{ weekOffset++; renderDailyTracker(); });
+document.getElementById('dtPrevMonth').addEventListener('click', ()=>{ monthOffset--; renderMonthlyTracker(); });
+document.getElementById('dtNextMonth').addEventListener('click', ()=>{ monthOffset++; renderMonthlyTracker(); });
 
 document.getElementById('btnPeace').addEventListener('click', ()=> logEntry('peace'));
 document.getElementById('btnConflict').addEventListener('click', ()=> logEntry('conflict'));
