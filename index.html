@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -450,6 +449,85 @@
     background:var(--peace-soft);
   }
   .level-chip.active .lvl-num{color:var(--peace);}
+
+  /* ---- Daily Habit Tracker ---- */
+  .dt-hint{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    line-height:1.4;
+    margin:-4px 0 14px;
+  }
+  .interaction-row{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:11px 13px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+    font-size:13.5px;
+  }
+  .interaction-row button.del{
+    background:none; border:none; color:var(--ink-soft); font-size:16px; cursor:pointer; padding:2px 4px; flex:none;
+  }
+  .daily-child-card{overflow-x:auto;}
+  .dt-meta-row{
+    display:flex;
+    gap:14px;
+    margin-bottom:14px;
+    flex-wrap:wrap;
+  }
+  .dt-field{
+    font-size:10.5px;
+    color:var(--ink-soft);
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  .dt-field input, .dt-field select{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    padding:7px 8px;
+    background:var(--card);
+    text-transform:none;
+    letter-spacing:normal;
+  }
+  .dt-field input{width:60px;}
+  .dt-field select{max-width:190px;}
+  .habit-grid{
+    width:100%;
+    min-width:360px;
+    border-collapse:collapse;
+    margin-top:4px;
+  }
+  .habit-grid th{
+    font-size:10px;
+    color:var(--ink-soft);
+    font-weight:600;
+    text-align:center;
+    padding:2px 2px 6px;
+  }
+  .habit-grid th span{display:block; font-size:9px; font-weight:500;}
+  .habit-grid td{text-align:center; padding:5px 2px;}
+  .habit-grid td.row-label{
+    text-align:left;
+    font-size:12px;
+    padding-right:8px;
+    line-height:1.3;
+    max-width:130px;
+  }
+  .habit-grid tr.count-row td.row-label{font-weight:700;}
+  .habit-grid tr.count-row{border-top:1.5px solid var(--line);}
+  .check.small{width:20px; height:20px; border-radius:6px; margin:0 auto; font-size:11px;}
 </style>
 </head>
 <body>
@@ -460,10 +538,11 @@
   </header>
 
   <nav class="tabs">
-    <button data-view="tracker" class="active">Tracker</button>
+    <button data-view="tracker" class="active">P/C Tracker</button>
     <button data-view="steps">Action Steps</button>
     <button data-view="habits">Habits</button>
     <button data-view="levels">Levels</button>
+    <button data-view="dailyTracker">Daily Tracker</button>
     <button data-view="training">Training</button>
   </nav>
 
@@ -538,6 +617,18 @@
     <section class="view" id="view-levels">
       <div class="section-label">Obedience Levels</div>
       <div id="levelsList"></div>
+    </section>
+
+    <!-- DAILY HABIT TRACKER -->
+    <section class="view" id="view-dailyTracker">
+      <div class="section-label" style="margin-top:0;">
+        <span>Daily Obedience Interactions</span>
+      </div>
+      <div class="dt-hint">Plan 3–5 interactions you'll consciously do each day, then check them off per child below.</div>
+      <div class="interaction-list" id="interactionList"></div>
+      <button class="chip add" id="addInteractionBtn" style="margin-bottom:20px;">+ Add interaction</button>
+
+      <div id="dailyTrackerCards"></div>
     </section>
 
     <!-- TRAINING EXERCISES -->
@@ -637,13 +728,21 @@ const TRAINING_EXERCISES = [
   ["Ask what the Spirit says", "When the child faces a decision, ask what the Spirit of the Lord says about it and how the Lord would handle it."]
 ];
 
+const DEFAULT_DAILY_INTERACTIONS = [
+  "Give a level-appropriate instruction",
+  "Praise obedience right away",
+  "Practice a reflex or task moment"
+];
+
 let entries = [];
 let stepsState = {};   // {index: {done:bool, note:string}}
 let habitsState = {};  // {index: {note:string}}
 let levelsState = {};  // {childId: levelIndex}
 let trainingState = {}; // {index: {done:bool, note:string}}
-let children = [];     // [{id, name}]
+let children = [];     // [{id, name, age}]
 let selectedChildId = 'all'; // 'all' or a child id
+let dailyInteractions = []; // [{id, text}]
+let habitTrackerState = {}; // {childId: {interactions:{intId:{dateKey:true}}, count:{dateKey:true}}}
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -810,6 +909,16 @@ async function loadAll(){
     children = v ? JSON.parse(v) : [];
   }catch(err){ children = []; }
 
+  try{
+    const v = await store.get('daily-interactions');
+    dailyInteractions = v ? JSON.parse(v) : DEFAULT_DAILY_INTERACTIONS.map((t,i)=>({id:'di'+i, text:t}));
+  }catch(err){ dailyInteractions = DEFAULT_DAILY_INTERACTIONS.map((t,i)=>({id:'di'+i, text:t})); }
+
+  try{
+    const v = await store.get('habit-tracker-state');
+    habitTrackerState = v ? JSON.parse(v) : {};
+  }catch(err){ habitTrackerState = {}; }
+
   if(children.length && selectedChildId === 'all' && children.length === 1){
     selectedChildId = children[0].id;
   }
@@ -819,6 +928,7 @@ async function loadAll(){
   renderSteps();
   renderHabits();
   renderLevels();
+  renderDailyTracker();
   renderTraining();
 }
 
@@ -865,6 +975,7 @@ function renderChildren(){
       await saveChildren();
       renderChildren();
       renderTracker();
+      renderDailyTracker();
       toast('Child removed');
     });
     row.appendChild(chip);
@@ -886,6 +997,7 @@ function renderChildren(){
     await saveChildren();
     renderChildren();
     renderTracker();
+    renderDailyTracker();
     toast(`${child.name} added`);
   });
   row.appendChild(addChip);
@@ -911,6 +1023,15 @@ async function saveLevels(){
 
 async function saveTraining(){
   const ok = await store.set('training-state', JSON.stringify(trainingState));
+  if(!ok) toast('Could not save');
+}
+
+async function saveDailyInteractions(){
+  const ok = await store.set('daily-interactions', JSON.stringify(dailyInteractions));
+  if(!ok) toast('Could not save');
+}
+async function saveHabitTracker(){
+  const ok = await store.set('habit-tracker-state', JSON.stringify(habitTrackerState));
   if(!ok) toast('Could not save');
 }
 
@@ -1157,6 +1278,7 @@ function renderLevels(){
         levelsState[c.id] = parseInt(btn.dataset.level, 10);
         await saveLevels();
         renderLevels();
+        renderDailyTracker();
         toast(`${c.name}: ${OBEDIENCE_LEVELS[levelsState[c.id]][0]}`);
       });
     });
@@ -1216,6 +1338,181 @@ function renderTraining(){
     });
   });
 }
+
+function ymd(d){
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function currentWeekDates(){
+  const now = new Date();
+  const dow = now.getDay();
+  const dates = [];
+  for(let i=0;i<7;i++){
+    const d = new Date(now);
+    d.setDate(now.getDate() - dow + i);
+    dates.push(d);
+  }
+  return dates;
+}
+const DAY_LETTERS = ['S','M','T','W','T','F','S'];
+
+function renderInteractionsList(){
+  const list = document.getElementById('interactionList');
+  if(!list) return;
+  list.innerHTML = '';
+  if(!dailyInteractions.length){
+    list.innerHTML = '<div class="empty">No interactions yet. Add 3–5 to start tracking.</div>';
+  }
+  dailyInteractions.forEach(item=>{
+    const row = document.createElement('div');
+    row.className = 'interaction-row';
+    row.innerHTML = `<span>${escapeHtml(item.text)}</span><button class="del" data-id="${item.id}">✕</button>`;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const ok = await confirmModal({
+        title: 'Remove this interaction?',
+        description: "Past check marks for it will be kept but hidden from the grid.",
+        confirmLabel: 'Remove'
+      });
+      if(!ok) return;
+      dailyInteractions = dailyInteractions.filter(x => x.id !== btn.dataset.id);
+      await saveDailyInteractions();
+      renderDailyTracker();
+      toast('Interaction removed');
+    });
+  });
+}
+
+function renderDailyTracker(){
+  renderInteractionsList();
+  const wrap = document.getElementById('dailyTrackerCards');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+
+  if(!children.length){
+    wrap.innerHTML = '<div class="no-child-banner">Add a child on the Tracker tab to start their daily tracker.</div>';
+    return;
+  }
+
+  const dates = currentWeekDates();
+
+  children.forEach(c=>{
+    if(!habitTrackerState[c.id]) habitTrackerState[c.id] = { interactions:{}, count:{} };
+    const cs = habitTrackerState[c.id];
+    if(!cs.interactions) cs.interactions = {};
+    if(!cs.count) cs.count = {};
+
+    const currentLevel = levelsState[c.id] !== undefined ? levelsState[c.id] : '';
+
+    const card = document.createElement('div');
+    card.className = 'card daily-child-card';
+
+    const headerHtml = `
+      <div class="titles" style="margin-bottom:10px;">
+        <div class="t">${escapeHtml(c.name)}</div>
+      </div>
+      <div class="dt-meta-row">
+        <label class="dt-field">Age
+          <input type="text" inputmode="numeric" class="dt-age-input" data-child="${c.id}" value="${escapeHtml(c.age || '')}" placeholder="—">
+        </label>
+        <label class="dt-field">Level
+          <select class="dt-level-select" data-child="${c.id}">
+            <option value="">Not set</option>
+            ${OBEDIENCE_LEVELS.map((lvl,i)=>`<option value="${i}" ${currentLevel===i?'selected':''}>${lvl[0]}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+    `;
+
+    let tableHtml;
+    if(dailyInteractions.length){
+      const headRow = `<tr><th></th>${dates.map(d=>`<th>${DAY_LETTERS[d.getDay()]}<span>${d.getDate()}</span></th>`).join('')}</tr>`;
+      const bodyRows = dailyInteractions.map(item=>{
+        const cells = dates.map(d=>{
+          const key = ymd(d);
+          const on = !!(cs.interactions[item.id] && cs.interactions[item.id][key]);
+          return `<td><div class="check small ${on?'done':''}" data-child="${c.id}" data-int="${item.id}" data-date="${key}">${on?'✓':''}</div></td>`;
+        }).join('');
+        return `<tr><td class="row-label">${escapeHtml(item.text)}</td>${cells}</tr>`;
+      }).join('');
+      const countRow = `<tr class="count-row"><td class="row-label">Daily count complete</td>${dates.map(d=>{
+        const key = ymd(d);
+        const on = !!cs.count[key];
+        return `<td><div class="check small ${on?'done':''}" data-child="${c.id}" data-count="1" data-date="${key}">${on?'✓':''}</div></td>`;
+      }).join('')}</tr>`;
+      tableHtml = `<table class="habit-grid"><thead>${headRow}</thead><tbody>${bodyRows}${countRow}</tbody></table>`;
+    } else {
+      tableHtml = '<div class="empty">Add daily interactions above to build this child\'s grid.</div>';
+    }
+
+    card.innerHTML = headerHtml + tableHtml;
+    wrap.appendChild(card);
+
+    const ageInput = card.querySelector('.dt-age-input');
+    ageInput.addEventListener('change', async (e)=>{
+      const child = children.find(ch => ch.id === c.id);
+      if(child){
+        child.age = e.target.value.trim();
+        await saveChildren();
+        toast('Saved');
+      }
+    });
+
+    const levelSelect = card.querySelector('.dt-level-select');
+    levelSelect.addEventListener('change', async (e)=>{
+      const val = e.target.value;
+      if(val === ''){ delete levelsState[c.id]; }
+      else { levelsState[c.id] = parseInt(val, 10); }
+      await saveLevels();
+      renderLevels();
+      toast(`${c.name}'s level updated`);
+    });
+
+    card.querySelectorAll('.check[data-int]').forEach(box=>{
+      box.addEventListener('click', async ()=>{
+        const intId = box.dataset.int;
+        const date = box.dataset.date;
+        if(!cs.interactions[intId]) cs.interactions[intId] = {};
+        const nowOn = !cs.interactions[intId][date];
+        if(nowOn) cs.interactions[intId][date] = true; else delete cs.interactions[intId][date];
+        box.classList.toggle('done', nowOn);
+        box.textContent = nowOn ? '✓' : '';
+        await saveHabitTracker();
+      });
+    });
+
+    card.querySelectorAll('.check[data-count]').forEach(box=>{
+      box.addEventListener('click', async ()=>{
+        const date = box.dataset.date;
+        const nowOn = !cs.count[date];
+        if(nowOn) cs.count[date] = true; else delete cs.count[date];
+        box.classList.toggle('done', nowOn);
+        box.textContent = nowOn ? '✓' : '';
+        await saveHabitTracker();
+      });
+    });
+  });
+}
+
+document.getElementById('addInteractionBtn').addEventListener('click', async ()=>{
+  if(dailyInteractions.length >= 8){
+    toast('Keep it focused — remove one first');
+    return;
+  }
+  const text = await promptModal({
+    title: 'Add a daily interaction',
+    description: '3–5 is a good number to start with.',
+    placeholder: 'e.g. Give a one-step instruction',
+    confirmLabel: 'Add'
+  });
+  if(!text) return;
+  dailyInteractions.push({ id: 'di-'+Date.now()+'-'+Math.random().toString(36).slice(2,5), text });
+  await saveDailyInteractions();
+  renderDailyTracker();
+  toast('Interaction added');
+});
 
 document.getElementById('btnPeace').addEventListener('click', ()=> logEntry('peace'));
 document.getElementById('btnConflict').addEventListener('click', ()=> logEntry('conflict'));
