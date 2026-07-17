@@ -469,6 +469,20 @@
     margin-bottom:8px;
     font-size:13.5px;
   }
+  .interaction-main{
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    cursor:pointer;
+  }
+  .interaction-text{line-height:1.35;}
+  .interaction-who{
+    font-size:11px;
+    font-weight:600;
+    color:var(--gold);
+  }
   .interaction-row button.del{
     background:none; border:none; color:var(--ink-soft); font-size:16px; cursor:pointer; padding:2px 4px; flex:none;
   }
@@ -799,9 +813,10 @@ function confirmModal({title, description, confirmLabel}){
   });
 }
 
-function pickChildrenModal(childList, actionLabel){
+function pickChildrenModal(childList, actionLabel, opts){
+  opts = opts || {};
   return new Promise((resolve)=>{
-    const selected = new Set();
+    const selected = new Set(opts.preselectedIds || []);
     const renderList = ()=>{
       return childList.map(c => `
         <button class="modal-child-btn ${selected.has(c.id) ? 'checked' : ''}" data-id="${c.id}">
@@ -811,8 +826,8 @@ function pickChildrenModal(childList, actionLabel){
       `).join('');
     };
     modalSheet.innerHTML = `
-      <h3>Who was involved?</h3>
-      <p>Tap everyone this ${actionLabel} interaction applies to.</p>
+      <h3>${opts.title || 'Who was involved?'}</h3>
+      <p>${opts.description || `Tap everyone this ${actionLabel} interaction applies to.`}</p>
       <div class="modal-child-list" id="modalChildList">${renderList()}</div>
       <div class="modal-actions" style="margin-bottom:10px;">
         <button class="btn-cancel" id="modalSelectAll">Select all</button>
@@ -820,7 +835,7 @@ function pickChildrenModal(childList, actionLabel){
       </div>
       <div class="modal-actions">
         <button class="btn-cancel" id="modalCancel">Cancel</button>
-        <button class="btn-confirm" id="modalConfirm">Log entry</button>
+        <button class="btn-confirm" id="modalConfirm">${opts.confirmLabel || 'Log entry'}</button>
       </div>
     `;
     modalBackdrop.classList.add('show');
@@ -1356,6 +1371,30 @@ function currentWeekDates(){
 }
 const DAY_LETTERS = ['S','M','T','W','T','F','S'];
 
+function interactionWhoLabel(item){
+  if(!children.length) return 'All kids';
+  if(!item.childIds || !item.childIds.length) return 'All kids';
+  if(children.every(c => item.childIds.includes(c.id))) return 'All kids';
+  const names = item.childIds.map(id => childName(id)).filter(Boolean);
+  return names.length ? names.join(', ') : 'All kids';
+}
+
+async function assignInteractionChildren(item){
+  if(!children.length){ toast('Add a child first'); return; }
+  const preselected = (item.childIds && item.childIds.length) ? item.childIds : children.map(c => c.id);
+  const picked = await pickChildrenModal(children, 'assign', {
+    preselectedIds: preselected,
+    title: 'Who is this for?',
+    description: 'Choose which children this daily interaction applies to.',
+    confirmLabel: 'Save'
+  });
+  if(!picked) return;
+  item.childIds = children.every(c => picked.includes(c.id)) ? [] : picked;
+  await saveDailyInteractions();
+  renderDailyTracker();
+  toast('Updated who it applies to');
+}
+
 function renderInteractionsList(){
   const list = document.getElementById('interactionList');
   if(!list) return;
@@ -1366,11 +1405,24 @@ function renderInteractionsList(){
   dailyInteractions.forEach(item=>{
     const row = document.createElement('div');
     row.className = 'interaction-row';
-    row.innerHTML = `<span>${escapeHtml(item.text)}</span><button class="del" data-id="${item.id}">✕</button>`;
+    row.innerHTML = `
+      <div class="interaction-main" data-id="${item.id}">
+        <span class="interaction-text">${escapeHtml(item.text)}</span>
+        <span class="interaction-who">${escapeHtml(interactionWhoLabel(item))}</span>
+      </div>
+      <button class="del" data-id="${item.id}">✕</button>
+    `;
     list.appendChild(row);
   });
+  list.querySelectorAll('.interaction-main').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const item = dailyInteractions.find(x => x.id === el.dataset.id);
+      if(item) assignInteractionChildren(item);
+    });
+  });
   list.querySelectorAll('.del').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
+    btn.addEventListener('click', async (ev)=>{
+      ev.stopPropagation();
       const ok = await confirmModal({
         title: 'Remove this interaction?',
         description: "Past check marks for it will be kept but hidden from the grid.",
@@ -1426,10 +1478,12 @@ function renderDailyTracker(){
       </div>
     `;
 
+    const childInteractions = dailyInteractions.filter(it => !it.childIds || !it.childIds.length || it.childIds.includes(c.id));
+
     let tableHtml;
-    if(dailyInteractions.length){
+    if(childInteractions.length){
       const headRow = `<tr><th></th>${dates.map(d=>`<th>${DAY_LETTERS[d.getDay()]}<span>${d.getDate()}</span></th>`).join('')}</tr>`;
-      const bodyRows = dailyInteractions.map(item=>{
+      const bodyRows = childInteractions.map(item=>{
         const cells = dates.map(d=>{
           const key = ymd(d);
           const on = !!(cs.interactions[item.id] && cs.interactions[item.id][key]);
@@ -1443,6 +1497,8 @@ function renderDailyTracker(){
         return `<td><div class="check small ${on?'done':''}" data-child="${c.id}" data-count="1" data-date="${key}">${on?'✓':''}</div></td>`;
       }).join('')}</tr>`;
       tableHtml = `<table class="habit-grid"><thead>${headRow}</thead><tbody>${bodyRows}${countRow}</tbody></table>`;
+    } else if(dailyInteractions.length){
+      tableHtml = `<div class="empty">No interactions assigned to ${escapeHtml(c.name)} yet. Tap an interaction above to assign it.</div>`;
     } else {
       tableHtml = '<div class="empty">Add daily interactions above to build this child\'s grid.</div>';
     }
@@ -1508,7 +1564,19 @@ document.getElementById('addInteractionBtn').addEventListener('click', async ()=
     confirmLabel: 'Add'
   });
   if(!text) return;
-  dailyInteractions.push({ id: 'di-'+Date.now()+'-'+Math.random().toString(36).slice(2,5), text });
+
+  let childIds = [];
+  if(children.length > 1){
+    const picked = await pickChildrenModal(children, 'assign', {
+      preselectedIds: children.map(c => c.id),
+      title: 'Who is this for?',
+      description: 'Choose which children this daily interaction applies to — defaults to everyone.',
+      confirmLabel: 'Add interaction'
+    });
+    if(picked) childIds = children.every(c => picked.includes(c.id)) ? [] : picked;
+  }
+
+  dailyInteractions.push({ id: 'di-'+Date.now()+'-'+Math.random().toString(36).slice(2,5), text, childIds });
   await saveDailyInteractions();
   renderDailyTracker();
   toast('Interaction added');
