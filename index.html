@@ -587,36 +587,27 @@
   }
   .day-progress.full{border-color:var(--peace);}
 
-  .monthly-child-card{overflow-x:auto;}
-  .month-pct{
-    font-family:'Fraunces',serif;
-    font-size:18px;
-    font-weight:600;
-    color:var(--peace);
+  th.summary-head{
+    font-weight:700;
+    color:var(--peace) !important;
+    font-size:9.5px !important;
   }
-  .month-grid{
-    display:grid;
-    grid-template-columns:repeat(7, 1fr);
-    gap:4px;
-  }
-  .month-cell{
-    aspect-ratio:1;
-    border-radius:6px;
+  th.summary-wk{border-left:1.5px solid var(--line);}
+  .summary-badge{
+    width:28px;
+    height:26px;
+    margin:0 auto;
+    border-radius:7px;
+    border:1px solid var(--line);
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:9.5px;
-    color:var(--ink-soft);
-    border:1px solid var(--line);
-  }
-  .month-cell.month-head{
-    border:none;
+    font-size:9px;
     font-weight:700;
-    color:var(--ink-soft);
-    font-size:10px;
-    aspect-ratio:auto;
+    color:var(--ink);
   }
-  .month-cell.blank{border:none; background:transparent;}
+  td.summary-cell{padding:5px 1px;}
+  td.summary-cell.wk{border-left:1.5px solid var(--line);}
 </style>
 </head>
 <body>
@@ -712,14 +703,6 @@
         <button id="dtNextWeek" aria-label="Next week">›</button>
       </div>
       <div id="dailyTrackerCards"></div>
-
-      <div class="section-label" style="margin-top:26px;"><span>Monthly Overview</span></div>
-      <div class="dt-nav">
-        <button id="dtPrevMonth" aria-label="Previous month">‹</button>
-        <span id="dtMonthLabel">–</span>
-        <button id="dtNextMonth" aria-label="Next month">›</button>
-      </div>
-      <div id="monthlyTrackerCards"></div>
     </section>
 
     <!-- ACTION STEPS -->
@@ -1448,7 +1431,6 @@ function ymd(d){
   return `${y}-${m}-${day}`;
 }
 let weekOffset = 0;  // 0 = this week, -1 = last week, +1 = next week
-let monthOffset = 0; // 0 = this month, -1 = last month, +1 = next month
 
 function weekDates(offset){
   const now = new Date();
@@ -1469,16 +1451,39 @@ function weekLabel(dates){
   const endStr = end.toLocaleDateString(undefined, {month:'short', day:'numeric', year: sameYear ? undefined : 'numeric'});
   return `${startStr} – ${endStr}`;
 }
-function monthInfo(offset){
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth() + (offset||0);
-  const first = new Date(y, m, 1);
-  const daysInMonth = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
-  return { year: first.getFullYear(), month: first.getMonth(), daysInMonth, firstDow: first.getDay() };
+function weekPercent(childId, dates){
+  const ratios = dates.map(d => dayRatio(childId, ymd(d)));
+  const avg = ratios.reduce((a,b)=>a+b, 0) / ratios.length;
+  return Math.round(avg*100);
 }
-function monthLabel(info){
-  return new Date(info.year, info.month, 1).toLocaleDateString(undefined, {month:'long', year:'numeric'});
+function monthPercentFor(childId, refDate){
+  const year = refDate.getFullYear(), month = refDate.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  let total = 0;
+  for(let day=1; day<=daysInMonth; day++){
+    total += dayRatio(childId, ymd(new Date(year, month, day)));
+  }
+  return Math.round((total/daysInMonth)*100);
+}
+function weekPercentForItem(childId, itemId, dates){
+  const cs = habitTrackerState[childId];
+  let checked = 0;
+  dates.forEach(d=>{
+    const key = ymd(d);
+    if(cs && cs.interactions && cs.interactions[itemId] && cs.interactions[itemId][key]) checked++;
+  });
+  return Math.round((checked/dates.length)*100);
+}
+function monthPercentForItem(childId, itemId, refDate){
+  const year = refDate.getFullYear(), month = refDate.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const cs = habitTrackerState[childId];
+  let checked = 0;
+  for(let day=1; day<=daysInMonth; day++){
+    const key = ymd(new Date(year, month, day));
+    if(cs && cs.interactions && cs.interactions[itemId] && cs.interactions[itemId][key]) checked++;
+  }
+  return Math.round((checked/daysInMonth)*100);
 }
 function childInteractionsFor(childId){
   return dailyInteractions.filter(it => !it.childIds || !it.childIds.length || it.childIds.includes(childId));
@@ -1571,9 +1576,11 @@ function renderDailyTracker(){
 
   if(!children.length){
     wrap.innerHTML = '<div class="no-child-banner">Add a child on the Tracker tab to start their daily tracker.</div>';
-    renderMonthlyTracker();
     return;
   }
+
+  const monthRefDate = dates[3];
+  const monthAbbrev = monthRefDate.toLocaleDateString(undefined, {month:'short'});
 
   children.forEach(c=>{
     if(!habitTrackerState[c.id]) habitTrackerState[c.id] = { interactions:{}, count:{} };
@@ -1607,21 +1614,26 @@ function renderDailyTracker(){
 
     let tableHtml;
     if(childInteractions.length){
-      const headRow = `<tr><th></th>${dates.map(d=>`<th>${DAY_LETTERS[d.getDay()]}<span>${d.getDate()}</span></th>`).join('')}</tr>`;
+      const headRow = `<tr><th></th>${dates.map(d=>`<th>${DAY_LETTERS[d.getDay()]}<span>${d.getDate()}</span></th>`).join('')}<th class="summary-head summary-wk">Wk</th><th class="summary-head">${escapeHtml(monthAbbrev)}</th></tr>`;
+      const badgeCell = (pct, extraClass)=> `<td class="summary-cell ${extraClass||''}"><div class="summary-badge" style="background-color:rgba(var(--peace-rgb), ${(pct/100).toFixed(2)});">${pct}%</div></td>`;
       const bodyRows = childInteractions.map(item=>{
         const cells = dates.map(d=>{
           const key = ymd(d);
           const on = !!(cs.interactions[item.id] && cs.interactions[item.id][key]);
           return `<td><div class="check small ${on?'done':''}" data-child="${c.id}" data-int="${item.id}" data-date="${key}">${on?'✓':''}</div></td>`;
         }).join('');
-        return `<tr><td class="row-label">${escapeHtml(item.text)}</td>${cells}</tr>`;
+        const wkPct = weekPercentForItem(c.id, item.id, dates);
+        const moPct = monthPercentForItem(c.id, item.id, monthRefDate);
+        return `<tr><td class="row-label">${escapeHtml(item.text)}</td>${cells}${badgeCell(wkPct,'wk')}${badgeCell(moPct)}</tr>`;
       }).join('');
+      const totalWkPct = weekPercent(c.id, dates);
+      const totalMoPct = monthPercentFor(c.id, monthRefDate);
       const countRow = `<tr class="count-row"><td class="row-label">Daily total</td>${dates.map(d=>{
         const key = ymd(d);
         const ratio = dayRatio(c.id, key);
         const pct = Math.round(ratio*100);
         return `<td><div class="day-progress ${ratio>=1?'full':''}"><div class="fill" style="height:${pct}%"></div></div></td>`;
-      }).join('')}</tr>`;
+      }).join('')}${badgeCell(totalWkPct,'wk')}${badgeCell(totalMoPct)}</tr>`;
       tableHtml = `<table class="habit-grid"><thead>${headRow}</thead><tbody>${bodyRows}${countRow}</tbody></table>`;
     } else if(dailyInteractions.length){
       tableHtml = `<div class="empty">No interactions assigned to ${escapeHtml(c.name)} yet. Tap an interaction above to assign it.</div>`;
@@ -1665,65 +1677,6 @@ function renderDailyTracker(){
     });
 
   });
-
-  renderMonthlyTracker();
-}
-
-function renderMonthlyTracker(){
-  const wrap = document.getElementById('monthlyTrackerCards');
-  if(!wrap) return;
-  wrap.innerHTML = '';
-
-  const info = monthInfo(monthOffset);
-  const monthLabelEl = document.getElementById('dtMonthLabel');
-  if(monthLabelEl) monthLabelEl.textContent = monthLabel(info);
-
-  if(!children.length){
-    wrap.innerHTML = '<div class="no-child-banner">Add a child on the Tracker tab to see their monthly overview.</div>';
-    return;
-  }
-
-  children.forEach(c=>{
-    const childInteractions = childInteractionsFor(c.id);
-    const card = document.createElement('div');
-    card.className = 'card monthly-child-card';
-
-    if(!childInteractions.length){
-      card.innerHTML = `
-        <div class="titles">
-          <div class="t">${escapeHtml(c.name)}</div>
-          <div class="d">No interactions assigned yet.</div>
-        </div>
-      `;
-      wrap.appendChild(card);
-      return;
-    }
-
-    let totalRatio = 0;
-    const dayCells = [];
-    for(let day=1; day<=info.daysInMonth; day++){
-      const d = new Date(info.year, info.month, day);
-      const key = ymd(d);
-      const ratio = dayRatio(c.id, key);
-      totalRatio += ratio;
-      dayCells.push(`<div class="month-cell" style="background-color:rgba(var(--peace-rgb), ${ratio.toFixed(2)});">${day}</div>`);
-    }
-    const monthPct = Math.round((totalRatio / info.daysInMonth) * 100);
-    const leadingBlanks = Array.from({length: info.firstDow}, ()=> `<div class="month-cell blank"></div>`).join('');
-
-    card.innerHTML = `
-      <div class="titles" style="margin-bottom:10px; display:flex; align-items:baseline; justify-content:space-between;">
-        <div class="t">${escapeHtml(c.name)}</div>
-        <div class="month-pct">${monthPct}%</div>
-      </div>
-      <div class="month-grid">
-        ${DAY_LETTERS.map(l=>`<div class="month-cell month-head">${l}</div>`).join('')}
-        ${leadingBlanks}
-        ${dayCells.join('')}
-      </div>
-    `;
-    wrap.appendChild(card);
-  });
 }
 
 document.getElementById('addInteractionBtn').addEventListener('click', async ()=>{
@@ -1758,8 +1711,6 @@ document.getElementById('addInteractionBtn').addEventListener('click', async ()=
 
 document.getElementById('dtPrevWeek').addEventListener('click', ()=>{ weekOffset--; renderDailyTracker(); });
 document.getElementById('dtNextWeek').addEventListener('click', ()=>{ weekOffset++; renderDailyTracker(); });
-document.getElementById('dtPrevMonth').addEventListener('click', ()=>{ monthOffset--; renderMonthlyTracker(); });
-document.getElementById('dtNextMonth').addEventListener('click', ()=>{ monthOffset++; renderMonthlyTracker(); });
 
 document.getElementById('btnPeace').addEventListener('click', ()=> logEntry('peace'));
 document.getElementById('btnConflict').addEventListener('click', ()=> logEntry('conflict'));
