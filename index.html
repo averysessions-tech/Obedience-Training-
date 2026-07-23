@@ -438,6 +438,12 @@
     font-family:'Inter',sans-serif;
     cursor:pointer;
     display:flex;
+    flex-direction:column;
+    gap:4px;
+    width:100%;
+  }
+  .level-chip .lvl-top{
+    display:flex;
     align-items:baseline;
     gap:8px;
     width:100%;
@@ -445,11 +451,36 @@
   .level-chip .lvl-num{font-weight:700; font-size:12.5px; color:var(--gold); flex:none;}
   .level-chip .lvl-desc{font-size:13px; font-weight:600; flex:1;}
   .level-chip .lvl-ages{font-size:11px; color:var(--ink-soft); flex:none;}
+  .level-chip .lvl-explain{font-size:11.5px; color:var(--ink-soft); line-height:1.4;}
   .level-chip.active{
     border-color:var(--peace);
     background:var(--peace-soft);
   }
   .level-chip.active .lvl-num{color:var(--peace);}
+  .level-chip.completed{border-color:var(--peace);}
+  .lvl-check{
+    width:16px; height:16px;
+    border-radius:50%;
+    background:var(--peace);
+    color:#fff;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:10px;
+    line-height:1;
+    flex:none;
+  }
+  .lvl-progress-tag{
+    font-size:9.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    color:var(--peace);
+    background:var(--peace-soft);
+    border-radius:20px;
+    padding:2px 7px;
+    flex:none;
+  }
 
   /* ---- Daily Habit Tracker ---- */
   .dt-hint{
@@ -789,14 +820,14 @@ const HABITS = [
 ];
 
 const OBEDIENCE_LEVELS = [
-  ["Level 0", "Priming / Reflex Training", "4 months to walking"],
-  ["Level 1", "A Simple, Single-Step Task, Now", "Walking to age 3"],
-  ["Level 2", "A Single Step Task, Later", "Ages 3 to 5"],
-  ["Level 3", "A Recurring Single Step Task", "Ages 3 to 8"],
-  ["Level 4", "A Multiple Step Task", "Age 6 and above"],
-  ["Level 5", "Recurring Multiple Step Tasks", "Age 6 and above"],
-  ["Level 6", "Law of One Above Another (Tying Back)", "Age 8 and above"],
-  ["Level 7", "Obedience to Principle & the Spirit of God", "Age 12 and above"]
+  ["Level 0", "Priming / Reflex Training", "4 months to walking", "Building an automatic response to key words like \"stop\" or \"no\" — training the reflex before the child can understand reasoning."],
+  ["Level 1", "A Simple, Single-Step Task, Now", "Walking to age 3", "The child obeys one clear instruction right away, without needing to understand why."],
+  ["Level 2", "A Single Step Task, Later", "Ages 3 to 5", "The child can hold onto a one-step instruction and complete it after a short delay, not just immediately."],
+  ["Level 3", "A Recurring Single Step Task", "Ages 3 to 8", "The child repeats a single-step task as a routine, without needing to be told each time."],
+  ["Level 4", "A Multiple Step Task", "Age 6 and above", "The child can follow and complete an instruction that has several steps done in the right order."],
+  ["Level 5", "Recurring Multiple Step Tasks", "Age 6 and above", "The multi-step task becomes a consistent habit the child does routinely, without reminders."],
+  ["Level 6", "Law of One Above Another (Tying Back)", "Age 8 and above", "The child learns to submit to authority even when it conflicts with their own preference, connecting the instruction back to why it matters."],
+  ["Level 7", "Obedience to Principle & the Spirit of God", "Age 12 and above", "The child obeys out of internalized conviction and character, not just because they were told to."]
 ];
 
 const TRAINING_EXERCISES = [
@@ -1344,13 +1375,22 @@ function renderLevels(){
     const currentLevel = levelsState[c.id] !== undefined ? levelsState[c.id] : null;
     const card = document.createElement('div');
     card.className = 'card';
-    const chipsHtml = OBEDIENCE_LEVELS.map(([lvl, desc, ages], i) => `
-      <button class="level-chip ${currentLevel === i ? 'active' : ''}" data-child="${c.id}" data-level="${i}">
-        <span class="lvl-num">${lvl}</span>
-        <span class="lvl-desc">${desc}</span>
-        <span class="lvl-ages">${ages}</span>
-      </button>
-    `).join('');
+    const chipsHtml = OBEDIENCE_LEVELS.map(([lvl, desc, ages, explain], i) => {
+      const isCurrent = currentLevel === i;
+      const isCompleted = currentLevel !== null && i < currentLevel;
+      return `
+        <button class="level-chip ${isCurrent ? 'active' : ''} ${isCompleted ? 'completed' : ''}" data-child="${c.id}" data-level="${i}">
+          <span class="lvl-top">
+            <span class="lvl-num">${lvl}</span>
+            <span class="lvl-desc">${desc}</span>
+            ${isCompleted ? '<span class="lvl-check">✓</span>' : ''}
+            ${isCurrent ? '<span class="lvl-progress-tag">In progress</span>' : ''}
+            <span class="lvl-ages">${ages}</span>
+          </span>
+          <span class="lvl-explain">${escapeHtml(explain)}</span>
+        </button>
+      `;
+    }).join('');
     card.innerHTML = `
       <div class="titles" style="margin-bottom:10px;">
         <div class="t">${escapeHtml(c.name)}</div>
